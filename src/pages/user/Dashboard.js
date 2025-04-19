@@ -13,20 +13,19 @@ import {
   ListItemIcon,
   ListItemText,
 } from "@mui/material";
-import SortIcon from "@mui/icons-material/Sort";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import MenuIcon from "@mui/icons-material/Menu";
 import LibraryBooksIcon from "@mui/icons-material/LibraryBooks";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import ExploreIcon from "@mui/icons-material/Explore";
 import LogoutIcon from "@mui/icons-material/Logout";
-import Library from "../../pages/user/Library";
-import Booking from "../../pages/user/Booking";
-import Browse from "../../pages/user/Browse";
+import Library from "../../pages/user/MyBookShelf";
+import Booking from "../../pages/user/BookingSummary";
+import Browse from "../../pages/user/Library";
 import officialLogo from "../../assets/official_logo.png";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import { supabase } from "../../supabase/client";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 const drawerWidth = 240;
 
@@ -80,11 +79,13 @@ const DrawerHeader = styled("div")(({ theme }) => ({
 }));
 
 const Dashboard = () => {
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const [time, setTime] = useState("");
   const [open, setOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState("Library");
+  const [activeSection, setActiveSection] = useState("My Bookshelf");
   const [libraryView, setLibraryView] = useState("grid");
+  const [libraryBook, setLibraryBook] = useState("book");
   const [selectedBookId, setSelectedBookId] = useState(null);
 
   const handleDrawerOpen = () => setOpen(true);
@@ -105,21 +106,21 @@ const Dashboard = () => {
   }, [setTime]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await logout();
     navigate("/Login/User/");
   };
 
   const navItems = [
     {
-      text: "Library",
+      text: "My Bookshelf",
       icon: <LibraryBooksIcon sx={{ color: "#0074cc" }} />,
     },
     {
-      text: "Booking",
+      text: "Booking Summary",
       icon: <EventAvailableIcon sx={{ color: "#0074cc" }} />,
     },
     {
-      text: "Browse",
+      text: "Library",
       icon: <ExploreIcon sx={{ color: "#0074cc" }} />,
     },
     {
@@ -163,23 +164,28 @@ const Dashboard = () => {
             style={{ marginRight: "10px", height: "50px" }}
           />
           <Typography variant="h6" noWrap>
-            {activeSection === "Library" && libraryView === "about"
-              ? "About This Book"
-              : activeSection === "Library" && libraryView === "cart"
-              ? "Book Cart"
+            {activeSection === "My Bookshelf" || activeSection === "Library"
+              ? libraryView === "about" || libraryBook === "about"
+                ? "About This Book"
+                : libraryView === "cart" || libraryBook === "cart"
+                ? "Book Cart"
+                : activeSection
               : activeSection}
           </Typography>
         </Toolbar>
-        {activeSection === "Library" && libraryView === "grid" && (
-          <SortIcon sx={{ color: "#0074cc", cursor: "pointer" }} />
-        )}
 
-        {activeSection === "Library" && libraryView === "about" && (
+        {((activeSection === "My Bookshelf" && libraryView === "about") ||
+          (activeSection === "Library" && libraryBook === "about")) && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, pr: 2 }}>
-            <span style={{ fontSize: "1.5rem", cursor: "pointer" }}>❤️</span>
             <span
               style={{ fontSize: "1.5rem", cursor: "pointer" }}
-              onClick={() => setLibraryView("cart")}
+              onClick={() => {
+                if (activeSection === "My Bookshelf") {
+                  setLibraryView("cart");
+                } else if (activeSection === "Library") {
+                  setLibraryBook("cart");
+                }
+              }}
             >
               🛒
             </span>
@@ -252,20 +258,8 @@ const Dashboard = () => {
 
       <Main open={open}>
         <DrawerHeader />
-        <Box
-          mt={2}
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            width: "100vw",
-            minHeight: "100vh",
-            backgroundColor: "#e6f4fb",
-            overflowY: "auto",
-            paddingBottom: "40px",
-          }}
-        >
-          {activeSection === "Library" && (
+        <Box mt={2}>
+          {activeSection === "My Bookshelf" && (
             <Library
               view={libraryView}
               setView={setLibraryView}
@@ -273,8 +267,18 @@ const Dashboard = () => {
               selectedBookId={selectedBookId}
             />
           )}
-          {activeSection === "Booking" && <Booking />}
-          {activeSection === "Browse" && <Browse />}
+          {activeSection === "Booking Summary" && <Booking />}
+          {activeSection === "Library" && (
+            <Browse
+              view={libraryBook}
+              setView={setLibraryBook}
+              onBookClick={(id) => {
+                setSelectedBookId(id);
+                setLibraryBook("about");
+              }}
+              selectedBookId={selectedBookId}
+            />
+          )}
         </Box>
       </Main>
     </Box>

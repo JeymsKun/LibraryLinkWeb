@@ -14,7 +14,6 @@ import {
   ListItemText,
   InputBase,
 } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
 import MenuIcon from "@mui/icons-material/Menu";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import AddBoxIcon from "@mui/icons-material/AddBox";
@@ -22,7 +21,7 @@ import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import LogoutIcon from "@mui/icons-material/Logout";
 import DashboardHome from "../../pages/staff/Home";
-import AddBook from "../../pages/staff/Add_Book";
+import AddBook from "../../pages/staff/AddBook";
 import Barcode from "../../pages/staff/Barcode";
 import Transaction from "../../pages/staff/Transaction";
 import officialLogo from "../../assets/official_logo.png";
@@ -220,15 +219,6 @@ const Dashboard = () => {
             {activeSection}
           </Typography>
         </Toolbar>
-        <Search>
-          <SearchIconWrapper>
-            <SearchIcon />
-          </SearchIconWrapper>
-          <StyledInputBase
-            placeholder="Search a book…"
-            inputProps={{ "aria-label": "search" }}
-          />
-        </Search>
       </AppBar>
 
       <Drawer
@@ -288,17 +278,7 @@ const Dashboard = () => {
 
       <Main open={open}>
         <DrawerHeader />
-        <Box
-          mt={2}
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            width: "100vw",
-            height: "100vh",
-            backgroundColor: "#e6f4fb",
-            overflow: "hidden",
-          }}
-        >
+        <Box mt={2}>
           {activeSection === "Dashboard" && <DashboardHome />}
           {activeSection === "Add New Book" && <AddBook />}
           {activeSection === "Barcode" && <Barcode />}
