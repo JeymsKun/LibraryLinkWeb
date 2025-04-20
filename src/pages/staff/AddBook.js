@@ -20,46 +20,55 @@ import {
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-import uploadBookFiles from "../../components/UploadBookFiles";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../supabase/client";
 import UploadTimer from "../../components/UploadTimer";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  setField,
+  addImage,
+  deleteImage,
+  resetForm,
+  setBarcode,
+} from "../../redux/slices/bookFormSlice";
+import { useQuery } from "@tanstack/react-query";
+import { fetchGenres } from "../../queries/genres";
+import { useUploadBookFiles } from "../../hooks/useUploadBookFiles";
 
 const AddBookWeb = () => {
+  const { mutate: uploadFiles } = useUploadBookFiles();
+  const dispatch = useDispatch();
   const { staff } = useAuth();
-  const [title, setTitle] = useState("");
-  const [author, setAuthor] = useState("");
-  const [genre, setGenre] = useState("");
-  const [isbn, setIsbn] = useState("");
-  const [publisher, setPublisher] = useState("");
-  const [publishedDate, setPublishedDate] = useState(new Date());
-  const [copies, setCopies] = useState("");
-  const [description, setDescription] = useState("");
-  const [barcode, setBarcode] = useState(null);
-  const [barcodeCode, setBarcodeCode] = useState("");
-  const [coverImage, setCoverImage] = useState(null);
-  const [images, setImages] = useState([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [genres, setGenres] = useState([]);
-  const [genreId, setGenreId] = useState("");
+  const {
+    title,
+    author,
+    genre,
+    genreId,
+    isbn,
+    publisher,
+    publishedDate,
+    copies,
+    description,
+    barcode,
+    barcodeCode,
+    coverImage,
+    images,
+  } = useSelector((state) => state.bookForm);
 
-  useEffect(() => {
-    const fetchGenres = async () => {
-      const { data, error } = await supabase.from("genres").select("*");
-      if (error) {
-        console.error("Error fetching genres:", error);
-      } else {
-        setGenres(data);
-      }
-    };
-    fetchGenres();
-  }, []);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const { data: genres = [] } = useQuery({
+    queryKey: ["genres"],
+    queryFn: fetchGenres,
+    staleTime: 1000 * 60 * 5,
+  });
 
   useEffect(() => {
     const code = isbn || generateFallbackBarcode();
-    setBarcodeCode(code);
-    setBarcode(getBarcodeUrl(code));
-  }, [isbn, title]);
+    dispatch(
+      setBarcode({ barcodeCode: code, barcodeUrl: getBarcodeUrl(code) })
+    );
+  }, [isbn, title, dispatch]);
 
   const generateFallbackBarcode = () => {
     return `${title?.slice(0, 3)?.toUpperCase() || "BK"}-${Date.now()}`;
@@ -70,19 +79,11 @@ const AddBookWeb = () => {
   };
 
   const handleClear = () => {
-    setTitle("");
-    setAuthor("");
-    setGenre("");
-    setIsbn("");
-    setPublisher("");
-    setPublishedDate(new Date());
-    setCopies("");
-    setDescription("");
-    setCoverImage(null);
-    setImages([]);
+    dispatch(resetForm());
     const newCode = generateFallbackBarcode();
-    setBarcodeCode(newCode);
-    setBarcode(getBarcodeUrl(newCode));
+    dispatch(
+      setBarcode({ barcodeCode: newCode, barcodeUrl: getBarcodeUrl(newCode) })
+    );
   };
 
   const copyToClipboard = () => {
@@ -94,28 +95,26 @@ const AddBookWeb = () => {
     const files = e.target.files;
     if (files.length) {
       const fileURL = URL.createObjectURL(files[0]);
-      if (isCover) setCoverImage(fileURL);
-      else {
-        const newImages = [...images, fileURL];
-        if (newImages.length > 5) return alert("Max 5 images allowed.");
-        setImages(newImages);
+      if (isCover) {
+        dispatch(setField({ field: "coverImage", value: fileURL }));
+      } else {
+        if (images.length >= 5) {
+          alert("Max 5 images allowed.");
+          return;
+        }
+        dispatch(addImage(fileURL));
       }
     }
   };
 
   const handleDeleteImage = (index) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const textFieldStyle = {
-    backgroundColor: "white",
-    "& .MuiInputBase-root": { height: 55, textAlign: "center" },
+    dispatch(deleteImage(index));
   };
 
   const handleCopiesChange = (e) => {
     const value = e.target.value;
     if (/^\d*$/.test(value)) {
-      setCopies(value);
+      dispatch(setField({ field: "copies", value }));
     }
   };
 
@@ -135,76 +134,107 @@ const AddBookWeb = () => {
       }
 
       const staffUuid = staff.staff_uuid;
-      const { coverUrl, imageUrls, barcodeUrl, infoUrl } =
-        await uploadBookFiles({
+
+      const genreName =
+        genres.find((g) => g.genre_id === genreId)?.name || "Unknown";
+
+      console.log("Uploading files with the following data:", {
+        coverImage,
+        images,
+        barcode,
+        title,
+        author,
+        genre: genreName,
+        isbn,
+        publisher,
+        publishedDate: publishedDate
+          ? new Date(publishedDate).toISOString()
+          : null,
+        copies,
+        description,
+        barcodeCode,
+      });
+
+      console.log("Checking staff id: ", staffUuid);
+
+      uploadFiles(
+        {
           coverImage,
           images,
           barcode,
-          title,
-          author,
-          genre,
-          isbn,
-          publisher,
-          publishedDate,
-          copies,
-          description,
-          barcodeCode,
-        });
+        },
+        {
+          onSuccess: async ({ coverUrl, imageUrls }) => {
+            console.log("Upload successful. Saving to database...");
+            const { data: insertedBook, error: dbError } = await supabase
+              .from("books")
+              .insert([
+                {
+                  title,
+                  author,
+                  genre_id: genreId,
+                  isbn,
+                  publisher,
+                  published_date: publishedDate
+                    ? new Date(publishedDate).toISOString()
+                    : null,
+                  copies: parseInt(copies),
+                  description,
+                  barcode_code: barcodeCode,
+                  cover_image_url: coverUrl,
+                  image_urls: imageUrls,
+                  staff_uuid: staffUuid,
+                },
+              ])
+              .select();
 
-      const { data: insertedBook, error: dbError } = await supabase
-        .from("books")
-        .insert([
-          {
-            title,
-            author,
-            genre_id: genreId,
-            isbn,
-            publisher,
-            published_date: publishedDate,
-            copies: parseInt(copies),
-            description,
-            barcode_code: barcodeCode,
-            cover_image_url: coverUrl,
-            image_urls: imageUrls,
-            staff_uuid: staffUuid,
+            const bookId = insertedBook?.[0]?.books_id;
+
+            if (bookId) {
+              const { error: bookGenreError } = await supabase
+                .from("book_genres")
+                .insert([
+                  {
+                    books_id: bookId,
+                    genre_id: genreId,
+                  },
+                ]);
+
+              if (bookGenreError) {
+                console.error("Error linking book to genre:", bookGenreError);
+              }
+            }
+
+            if (dbError) {
+              console.error("Error inserting book:", dbError);
+              alert("Error saving book.");
+              setIsUploading(false);
+              return;
+            }
+
+            alert("Book added successfully!");
+            handleClear();
           },
-        ])
-        .select();
-
-      const bookId = insertedBook?.[0]?.books_id;
-
-      console.log("Check book id: ", bookId);
-
-      if (bookId) {
-        const { error: bookGenreError } = await supabase
-          .from("book_genres")
-          .insert([
-            {
-              books_id: bookId,
-              genre_id: genreId,
-            },
-          ]);
-
-        if (bookGenreError) {
-          console.error("Error linking book to genre:", bookGenreError);
+          onError: (error) => {
+            console.error("Upload failed:", error);
+            alert("Something went wrong while saving the book.");
+          },
         }
-      }
-
-      if (dbError) {
-        console.error("Error inserting book:", dbError);
-        alert("Error saving book.");
-        setIsUploading(false);
-        return;
-      }
-
-      alert("Book added successfully!");
-      handleClear();
+      );
     } catch (error) {
       console.error("Unexpected error:", error);
       alert("Something went wrong while saving the book.");
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const textFieldStyle = {
+    margin: "normal",
+    backgroundColor: "white",
+    "& .MuiInputBase-root": {
+      textAlign: "left",
+    },
   };
 
   return (
@@ -218,7 +248,9 @@ const AddBookWeb = () => {
           fullWidth
           label="Book Title"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) =>
+            dispatch(setField({ field: "title", value: e.target.value }))
+          }
           margin="normal"
           sx={textFieldStyle}
         />
@@ -226,7 +258,9 @@ const AddBookWeb = () => {
           fullWidth
           label="Author Name"
           value={author}
-          onChange={(e) => setAuthor(e.target.value)}
+          onChange={(e) =>
+            dispatch(setField({ field: "author", value: e.target.value }))
+          }
           margin="normal"
           sx={textFieldStyle}
         />
@@ -235,7 +269,9 @@ const AddBookWeb = () => {
           fullWidth
           label="Genre"
           value={genreId}
-          onChange={(e) => setGenreId(e.target.value)}
+          onChange={(e) =>
+            dispatch(setField({ field: "genreId", value: e.target.value }))
+          }
           margin="normal"
           sx={{
             ...textFieldStyle,
@@ -269,7 +305,9 @@ const AddBookWeb = () => {
           fullWidth
           label="ISBN Number (optional)"
           value={isbn}
-          onChange={(e) => setIsbn(e.target.value)}
+          onChange={(e) =>
+            dispatch(setField({ field: "isbn", value: e.target.value }))
+          }
           margin="normal"
           sx={textFieldStyle}
         />
@@ -277,14 +315,23 @@ const AddBookWeb = () => {
           fullWidth
           label="Publisher"
           value={publisher}
-          onChange={(e) => setPublisher(e.target.value)}
+          onChange={(e) =>
+            dispatch(setField({ field: "publisher", value: e.target.value }))
+          }
           margin="normal"
           sx={textFieldStyle}
         />
         <DatePicker
           label="Published Date"
-          value={publishedDate}
-          onChange={(newValue) => setPublishedDate(newValue)}
+          value={publishedDate ? new Date(publishedDate) : null}
+          onChange={(newValue) =>
+            dispatch(
+              setField({
+                field: "publishedDate",
+                value: newValue ? new Date(newValue).toISOString() : null,
+              })
+            )
+          }
           slotProps={{
             textField: {
               fullWidth: true,
@@ -480,7 +527,9 @@ const AddBookWeb = () => {
           multiline
           minRows={3}
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) =>
+            dispatch(setField({ field: "description", value: e.target.value }))
+          }
           margin="normal"
           sx={{ backgroundColor: "white" }}
         />

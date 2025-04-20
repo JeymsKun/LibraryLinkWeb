@@ -321,7 +321,7 @@ const UserBrowse = ({ view, setView, onBookClick, selectedBookId }) => {
                           display: "flex",
                           flexDirection: "column",
                           alignItems: "center",
-                          backgroundColor: "#cce6f9", // light blue background
+                          backgroundColor: "#cce6f9", 
                           borderRadius: 2,
                           p: 1,
                           boxShadow: 2,

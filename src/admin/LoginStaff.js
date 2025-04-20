@@ -38,6 +38,8 @@ const LoginStaff = () => {
       .eq("staff_id", staffId)
       .single();
 
+    console.log("Check Staff: ", staffData);
+
     if (fetchError || !staffData) {
       alert("Staff ID not found.");
       return;

@@ -10,7 +10,37 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const getSessionAndUser = async () => {
+    const loadUserData = async (email) => {
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (!userError && userData) {
+        setUser(userData);
+        setStaff(null);
+        return;
+      }
+
+      const { data: staffData, error: staffError } = await supabase
+        .from("staff")
+        .select("*")
+        .eq("email", email)
+        .single();
+
+      if (!staffError && staffData) {
+        setStaff(staffData);
+        setUser(null);
+        return;
+      }
+
+      console.warn("No user or staff found for email:", email);
+      setUser(null);
+      setStaff(null);
+    };
+
+    const getSession = async () => {
       const { data, error } = await supabase.auth.getSession();
       if (error) {
         console.error("Session error:", error);
@@ -18,140 +48,49 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      const currentSession = data?.session ?? null;
+      const currentSession = data?.session;
       setSession(currentSession);
 
-      if (currentSession) {
-        const userEmail = currentSession.user.email;
-
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("*")
-          .eq("email", userEmail)
-          .single();
-
-        if (userError) {
-          console.error("Error fetching user data:", userError);
-        } else {
-          setUser(userData);
-        }
+      if (currentSession?.user?.email) {
+        await loadUserData(currentSession.user.email);
       }
 
       setLoading(false);
     };
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
+    const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         setSession(newSession);
 
-        if (event === "SIGNED_OUT") {
-          setSession(null);
+        if (event === "SIGNED_OUT" || !newSession) {
           setUser(null);
+          setStaff(null);
+          return;
         }
 
-        if (newSession) {
-          const userEmail = newSession.user.email;
-
-          const { data: userData, error: userError } = await supabase
-            .from("users")
-            .select("*")
-            .eq("email", userEmail)
-            .single();
-
-          if (userError) {
-            console.error("Error fetching user data:", userError);
-            setUser(null);
-          } else {
-            setUser(userData);
-          }
-        } else {
-          setUser(null);
-          setSession(null);
+        if (newSession?.user?.email) {
+          await loadUserData(newSession.user.email);
         }
       }
     );
 
-    getSessionAndUser();
+    getSession();
 
     return () => {
-      listener?.subscription.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    const getSessionAndStaff = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error("Session error:", error);
-        setLoading(false);
-        return;
-      }
-
-      const currentSession = data?.session ?? null;
-      setSession(currentSession);
-
-      if (currentSession) {
-        const staffEmail = currentSession.user.email;
-
-        const { data: staffData, error: staffError } = await supabase
-          .from("staff")
-          .select("*")
-          .eq("email", staffEmail)
-          .single();
-
-        if (staffError) {
-          console.error("Error fetching staff data:", staffError);
-        } else {
-          setStaff(staffData);
-        }
-      }
-
-      setLoading(false);
-    };
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
-        setSession(newSession);
-
-        if (event === "SIGNED_OUT") {
-          setSession(null);
-          setStaff(null);
-        }
-
-        if (newSession) {
-          const staffEmail = newSession.user.email;
-
-          const { data: staffData, error: staffError } = await supabase
-            .from("staff")
-            .select("*")
-            .eq("email", staffEmail)
-            .single();
-
-          if (staffError) {
-            console.error("Error fetching staff data:", staffError);
-            setStaff(null);
-          } else {
-            setStaff(staffData);
-          }
-        } else {
-          setStaff(null);
-          setSession(null);
-        }
-      }
-    );
-
-    getSessionAndStaff();
-
-    return () => {
-      listener?.subscription.unsubscribe();
+      authListener?.subscription.unsubscribe();
     };
   }, []);
 
   const setUserData = (userData) => {
     setUser(userData);
+    setStaff(null);
   };
 
-  const setStaffData = (data) => setStaff(data);
+  const setStaffData = (staffData) => {
+    console.log("Setting Staff Data in Context:", staffData);
+    setStaff(staffData);
+    setUser(null);
+  };
 
   const logout = async () => {
     await supabase.auth.signOut();

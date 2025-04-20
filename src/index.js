@@ -7,13 +7,24 @@ import reportWebVitals from "./reportWebVitals";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import theme from "./theme/theme";
 
+import { Provider } from "react-redux";
+import { store } from "./redux/store";
+
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <App />
-    </ThemeProvider>
+    <Provider store={store}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <App />
+        </ThemeProvider>
+      </QueryClientProvider>
+    </Provider>
   </React.StrictMode>
 );
 
