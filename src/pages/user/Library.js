@@ -14,6 +14,7 @@ import {
   Button,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+
 import SearchIcon from "@mui/icons-material/Search";
 import { supabase } from "../../supabase/client";
 import { useAuth } from "../../context/AuthContext";
@@ -89,9 +90,7 @@ const UserBrowse = ({ view, setView, onBookClick, selectedBookId }) => {
     for (const genre of genresList) {
       const { data, error } = await supabase
         .from("book_genres")
-        .select(
-          "books:books_id(title, author, books_id, cover_image_url, image_urls)"
-        )
+        .select("books:books_id(*)")
         .eq("genre_id", genre.genre_id);
 
       if (!error && data) {
@@ -172,6 +171,8 @@ const UserBrowse = ({ view, setView, onBookClick, selectedBookId }) => {
     );
 
   const handleBookClick = async (bookId) => {
+    console.log("Book clicked:", bookId);
+
     if (!userId || !bookId) return;
 
     const { data: existing, error: checkError } = await supabase
@@ -316,12 +317,13 @@ const UserBrowse = ({ view, setView, onBookClick, selectedBookId }) => {
                       <Box
                         key={book.books_id}
                         sx={{
-                          minWidth: 120,
+                          width: 140,
+                          height: 240,
                           flexShrink: 0,
                           display: "flex",
                           flexDirection: "column",
                           alignItems: "center",
-                          backgroundColor: "#cce6f9", 
+                          backgroundColor: "#cce6f9",
                           borderRadius: 2,
                           p: 1,
                           boxShadow: 2,
@@ -333,7 +335,7 @@ const UserBrowse = ({ view, setView, onBookClick, selectedBookId }) => {
                           alt={book.title}
                           sx={{
                             width: "100%",
-                            height: 160,
+                            height: 200,
                             objectFit: "cover",
                             borderRadius: 1,
                             backgroundColor: "#ccc",

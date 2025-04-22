@@ -16,6 +16,7 @@ import {
   DialogContent,
   DialogActions,
 } from "@mui/material";
+import { format } from "date-fns";
 import { KeyboardArrowLeft, KeyboardArrowRight } from "@mui/icons-material";
 
 const SUPABASE_URL = "https://ejgelmxicmlgzzpksbip.supabase.co";
@@ -75,6 +76,7 @@ const AboutBook = ({ bookId }) => {
       if (error) {
         alert("Error fetching book: " + error.message);
       } else {
+        console.log("Fetched Book Data:", data);
         setBook(data);
       }
 
@@ -150,6 +152,9 @@ const AboutBook = ({ bookId }) => {
         ...(book.image_urls || []).map(makePublicUrl),
       ]
     : [];
+
+  const barcodeImageUrl = book ? makePublicUrl(book.barcode_url) : null;
+  console.log("Constructed Barcode Image URL:", barcodeImageUrl);
 
   const handleImageClick = (imageUrl) => {
     setDialogImage(imageUrl);
@@ -303,6 +308,22 @@ const AboutBook = ({ bookId }) => {
               </>
             ) : (
               <>
+                {book.description ? (
+                  <Typography
+                    sx={{ mb: 2, fontSize: { xs: "0.9rem", md: "1rem" } }}
+                  >
+                    {book.description}
+                  </Typography>
+                ) : (
+                  <Typography
+                    sx={{
+                      mb: 2,
+                      fontSize: { xs: "0.9rem", md: "1rem", color: "gray" },
+                    }}
+                  >
+                    No description available.
+                  </Typography>
+                )}
                 {book.publisher && (
                   <Typography
                     sx={{ mb: 1, fontSize: { xs: "0.9rem", md: "1rem" } }}
@@ -315,7 +336,8 @@ const AboutBook = ({ bookId }) => {
                   <Typography
                     sx={{ mb: 1, fontSize: { xs: "0.9rem", md: "1rem" } }}
                   >
-                    <strong>Publish Date:</strong> {book.published_date}
+                    <strong>Publish Date:</strong>{" "}
+                    {format(new Date(book.published_date), "MMMM dd, yyyy")}
                   </Typography>
                 )}
 
@@ -332,15 +354,25 @@ const AboutBook = ({ bookId }) => {
                   </Typography>
                 )}
 
-                <Typography
-                  sx={{ mb: 2, fontSize: { xs: "0.9rem", md: "1rem" } }}
-                >
-                  <strong>Description:</strong> {book.description}
-                </Typography>
-
-                {book.barcode_code && (
-                  <Typography sx={{ fontSize: { xs: "0.9rem", md: "1rem" } }}>
-                    <strong>Barcode:</strong> {book.barcode_code}
+                {barcodeImageUrl ? (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography
+                      sx={{ mb: 1, fontSize: { xs: "0.9rem", md: "1rem" } }}
+                    >
+                      <strong>Barcode:</strong>
+                    </Typography>
+                    <img
+                      src={barcodeImageUrl}
+                      alt="Barcode"
+                      style={{
+                        maxWidth: "250px",
+                        height: "auto",
+                      }}
+                    />
+                  </Box>
+                ) : (
+                  <Typography color="error">
+                    Barcode image not available
                   </Typography>
                 )}
               </>

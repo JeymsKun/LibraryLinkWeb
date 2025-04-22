@@ -64,7 +64,12 @@ const AddBookWeb = () => {
   });
 
   useEffect(() => {
-    const code = isbn || generateFallbackBarcode();
+    let code = isbn || generateFallbackBarcode();
+
+    if (isbn && code === isbn) {
+      code = generateFallbackBarcode();
+    }
+
     dispatch(
       setBarcode({ barcodeCode: code, barcodeUrl: getBarcodeUrl(code) })
     );
@@ -153,6 +158,7 @@ const AddBookWeb = () => {
         copies,
         description,
         barcodeCode,
+        barcode,
       });
 
       console.log("Checking staff id: ", staffUuid);
@@ -164,7 +170,7 @@ const AddBookWeb = () => {
           barcode,
         },
         {
-          onSuccess: async ({ coverUrl, imageUrls }) => {
+          onSuccess: async ({ coverUrl, imageUrls, barcodeUrl }) => {
             console.log("Upload successful. Saving to database...");
             const { data: insertedBook, error: dbError } = await supabase
               .from("books")
@@ -180,7 +186,8 @@ const AddBookWeb = () => {
                     : null,
                   copies: parseInt(copies),
                   description,
-                  barcode_code: barcodeCode,
+                  barcode_url: barcodeUrl,
+                  barcode: barcodeCode,
                   cover_image_url: coverUrl,
                   image_urls: imageUrls,
                   staff_uuid: staffUuid,
