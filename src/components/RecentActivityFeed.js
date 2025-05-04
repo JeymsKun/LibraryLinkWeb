@@ -109,7 +109,6 @@ const RecentActivityFeed = () => {
         Recent Activity Feed
       </Typography>
       {loading ? (
-        // Show Skeleton loader while data is loading
         <Box>
           <Skeleton variant="text" width="80%" height={20} mb={1} />
           <Skeleton variant="text" width="70%" height={20} mb={1} />

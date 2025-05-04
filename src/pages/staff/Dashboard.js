@@ -24,6 +24,8 @@ import DashboardHome from "../../pages/staff/Home";
 import AddBook from "../../pages/staff/AddBook";
 import Barcode from "../../pages/staff/Barcode";
 import Transaction from "../../pages/staff/Transaction";
+import ListBooks from "../../pages/staff/Booklist";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
 import officialLogo from "../../assets/official_logo.png";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import { supabase } from "../../supabase/client";
@@ -179,6 +181,10 @@ const Dashboard = () => {
       ),
     },
     {
+      text: "List of Books",
+      icon: <MenuBookIcon sx={{ color: "#0074cc" }} />,
+    },
+    {
       text: "Log Out",
       icon: (
         <LogoutIcon
@@ -242,7 +248,7 @@ const Dashboard = () => {
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
-            height: "80px",
+            height: "60px",
             transition: "background-color 0.2s",
           }}
           onMouseEnter={(e) =>
@@ -283,6 +289,7 @@ const Dashboard = () => {
           {activeSection === "Add New Book" && <AddBook />}
           {activeSection === "Barcode" && <Barcode />}
           {activeSection === "Transaction" && <Transaction />}
+          {activeSection === "List of Books" && <ListBooks />}
           {activeSection === "Log Out" && null}
         </Box>
       </Main>

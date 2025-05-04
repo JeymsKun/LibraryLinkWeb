@@ -222,7 +222,7 @@ const Dashboard = () => {
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
-            height: "80px",
+            height: "60px",
             transition: "background-color 0.2s",
           }}
           onMouseEnter={(e) =>

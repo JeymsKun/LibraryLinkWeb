@@ -160,13 +160,15 @@ const Library = ({ view, setView, onBookClick, selectedBookId }) => {
 
   const fetchReturnedBooks = useCallback(async () => {
     if (!userId) return;
+
     const { data, error } = await supabase
-      .from("returned_books")
+      .from("booking_requests")
       .select("*, books(*)")
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .eq("status", "waiting");
 
     if (error) {
-      console.error("Error fetching returned books:", error);
+      console.error("Error fetching approved booking requests:", error);
       return;
     }
 
@@ -186,7 +188,7 @@ const Library = ({ view, setView, onBookClick, selectedBookId }) => {
   }, [userId]);
 
   useEffect(() => {
-    if (view === "returned") {
+    if (view === "pending") {
       fetchReturnedBooks();
     }
   }, [view, fetchReturnedBooks]);
@@ -209,7 +211,7 @@ const Library = ({ view, setView, onBookClick, selectedBookId }) => {
 
   const handleViewFavorites = () => setView("favorites");
 
-  const handleViewReturned = () => setView("returned");
+  const handleViewReturned = () => setView("pending");
 
   const ButtonGroup = () => (
     <Box sx={{ mb: 2, pl: 2, pt: 2 }}>
@@ -253,7 +255,7 @@ const Library = ({ view, setView, onBookClick, selectedBookId }) => {
       ? favoriteBooks
       : view === "grid"
       ? recentBooks
-      : view === "returned"
+      : view === "pending"
       ? returnedBooks
       : books;
 
@@ -283,7 +285,7 @@ const Library = ({ view, setView, onBookClick, selectedBookId }) => {
           </ListItem>
           <ListItem disablePadding>
             <ListItemButton onClick={handleViewReturned}>
-              <ListItemText primary="My Returned" />
+              <ListItemText primary="My Pending" />
             </ListItemButton>
           </ListItem>
           <ListItem disablePadding>
@@ -299,8 +301,8 @@ const Library = ({ view, setView, onBookClick, selectedBookId }) => {
         <Typography variant="h5" gutterBottom>
           {view === "favorites"
             ? "My Favorite Books"
-            : view === "returned"
-            ? "My Returned Books"
+            : view === "pending"
+            ? "My Pending Books"
             : "Recently Viewed Books"}
         </Typography>
 

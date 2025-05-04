@@ -15,6 +15,7 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import { supabase } from "../supabase/client";
 import { useAuth } from "../context/AuthContext";
+import { useNotification } from "../components/NotificationProvider";
 
 const BookCart = () => {
   const [selectedBooks, setSelectedBooks] = useState([]);
@@ -22,7 +23,7 @@ const BookCart = () => {
   const [booksLoading, setBooksLoading] = useState(true);
   const [suggestedLoading, setSuggestedLoading] = useState(true);
   const [suggestedBooksData, setSuggestedBooksData] = useState([]);
-
+  const { showNotification } = useNotification();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { user } = useAuth();
@@ -66,8 +67,9 @@ const BookCart = () => {
   useEffect(() => {
     if (!user) return;
 
-    const fetchPendingBookings = async () => {
+    const fetchBookings = async () => {
       setBooksLoading(true);
+
       const { data, error } = await supabase
         .from("booking_cart")
         .select(
@@ -76,35 +78,40 @@ const BookCart = () => {
         .eq("user_id", user.user_id)
         .eq("status", "pending");
 
-      if (!error) {
-        const formatted = await Promise.all(
-          data.map(async (item) => {
-            const coverPath = item.books?.cover_image_url?.trim();
-            let coverUrl = null;
-
-            if (coverPath) {
-              const { data: urlData } = supabase.storage
-                .from("library")
-                .getPublicUrl(coverPath);
-              coverUrl = urlData?.publicUrl || null;
-            }
-
-            return {
-              id: item.books_id,
-              title: item.books?.title || "Unknown Title",
-              author: item.books?.author || "Unknown Author",
-              coverUrl,
-            };
-          })
-        );
-        setBooks(formatted);
-      } else {
-        console.error("Error fetching pending bookings:", error.message);
+      if (error) {
+        console.error("Error fetching cart:", error.message);
+        showNotification("Failed to fetch your cart.", "error");
+        setBooksLoading(false);
+        return;
       }
+
+      const formatted = await Promise.all(
+        data.map(async (item) => {
+          const coverPath = item.books?.cover_image_url?.trim();
+          let coverUrl = null;
+
+          if (coverPath) {
+            const { data: urlData } = supabase.storage
+              .from("library")
+              .getPublicUrl(coverPath);
+            coverUrl = urlData?.publicUrl || null;
+          }
+
+          return {
+            id: item.books_id,
+            title: item.books?.title || "Unknown Title",
+            author: item.books?.author || "Unknown Author",
+            coverUrl,
+            status: item.status,
+          };
+        })
+      );
+
+      setBooks(formatted);
       setBooksLoading(false);
     };
 
-    fetchPendingBookings();
+    fetchBookings();
   }, [user]);
 
   const handleCheckboxChange = (bookId) => {
@@ -118,41 +125,94 @@ const BookCart = () => {
   };
 
   const handleRemoveBook = async (bookId) => {
-    const { error } = await supabase
+    const { error: cartError } = await supabase
       .from("booking_cart")
       .delete()
       .eq("user_id", user.user_id)
       .eq("books_id", bookId)
-      .eq("status", "pending");
+      .eq("status", "approval");
 
-    if (!error) {
+    const { error: requestError } = await supabase
+      .from("booking_requests")
+      .delete()
+      .eq("user_id", user.user_id)
+      .eq("books_id", bookId)
+      .eq("status", "waiting");
+
+    if (!cartError && !requestError) {
       setBooks((prevBooks) => prevBooks.filter((book) => book.id !== bookId));
       setSelectedBooks((prevSelected) =>
         prevSelected.filter((id) => id !== bookId)
       );
+      showNotification("Book removed from cart and booking request.", "info");
     } else {
-      console.error("Error deleting book from cart:", error.message);
+      console.error(
+        "Error deleting book:",
+        cartError?.message || requestError?.message
+      );
+      showNotification("Failed to remove book.", "error");
     }
   };
 
   const requestBooking = async (bookId) => {
-    const { error } = await supabase
+    const { data: existingRequest, error: checkError } = await supabase
+      .from("booking_requests")
+      .select("request_id")
+      .eq("user_id", user.user_id)
+      .eq("books_id", bookId)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error("Error checking existing request:", checkError.message);
+      showNotification("Error checking existing requests.", "error");
+      return;
+    }
+
+    if (existingRequest) {
+      showNotification("You've already requested this book.", "info");
+      return;
+    }
+
+    const { error: insertError } = await supabase
+      .from("booking_requests")
+      .insert({
+        user_id: user.user_id,
+        books_id: bookId,
+        status: "waiting",
+        requested_at: new Date().toISOString(),
+      });
+
+    if (insertError) {
+      console.error("Error submitting booking request:", insertError.message);
+      showNotification("Failed to request booking.", "error");
+      return;
+    }
+
+    const { error: updateError } = await supabase
       .from("booking_cart")
-      .update({ status: "confirm" })
+      .update({ status: "approval" })
       .eq("user_id", user.user_id)
       .eq("books_id", bookId)
       .eq("status", "pending");
 
-    if (error) {
-      console.error("Error updating booking status:", error.message);
-      alert("Failed to confirm booking.");
-    } else {
-      setBooks((prevBooks) => prevBooks.filter((book) => book.id !== bookId));
-      setSelectedBooks((prevSelected) =>
-        prevSelected.filter((id) => id !== bookId)
+    if (updateError) {
+      console.warn(
+        "Booking request added, but cart status update failed:",
+        updateError.message
       );
-      alert("Booking confirmed!");
     }
+
+    const {} = await supabase.from("activity").insert({
+      books_id: bookId,
+      user_id: user.user_id,
+      status: "pending",
+    });
+
+    setBooks((prevBooks) => prevBooks.filter((book) => book.id !== bookId));
+    setSelectedBooks((prevSelected) =>
+      prevSelected.filter((id) => id !== bookId)
+    );
+    showNotification("Request sent! Please wait for approval.", "success");
   };
 
   return (

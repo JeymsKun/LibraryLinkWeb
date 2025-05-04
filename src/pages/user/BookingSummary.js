@@ -43,12 +43,12 @@ const Booking = () => {
     setLoading(true);
 
     const { data, error } = await supabase
-      .from("booking_cart")
+      .from("booking_requests")
       .select(
-        "booking_id, books_id, status, books:books_id (title, author, cover_image_url)"
+        "request_id, books_id, status, books:books_id (title, author, cover_image_url)"
       )
       .eq("user_id", user.user_id)
-      .eq("status", "confirm");
+      .eq("status", "approved");
 
     if (!error) {
       const formatted = await Promise.all(
@@ -65,11 +65,10 @@ const Booking = () => {
 
           return {
             id: item.books_id,
-            booking_id: item.booking_id,
+            request_id: item.request_id,
             title: item.books?.title || "Unknown Title",
             author: item.books?.author || "Unknown Author",
             coverUrl,
-            copies: item.books?.copies ?? 0,
           };
         })
       );
@@ -127,12 +126,27 @@ const Booking = () => {
         return;
       }
 
+      const { data: cartData, error: cartError } = await supabase
+        .from("booking_cart")
+        .select("booking_id")
+        .eq("user_id", user.user_id)
+        .eq("books_id", bookToBorrow.id)
+        .single();
+
+      if (cartError || !cartData?.booking_id) {
+        console.error(
+          "Error retrieving booking_id from booking_cart:",
+          cartError?.message
+        );
+        return;
+      }
+
       const { error: transactionError } = await supabase
         .from("transactions")
         .insert([
           {
             user_id: user.user_id,
-            booking_id: bookToBorrow.booking_id,
+            booking_id: cartData.booking_id,
             status: "borrowed",
           },
         ]);
@@ -149,6 +163,19 @@ const Booking = () => {
 
       if (updateCopiesError) {
         console.error("Error reducing book copies:", updateCopiesError.message);
+        return;
+      }
+
+      const { error: updateBookingRequestError } = await supabase
+        .from("booking_requests")
+        .update({ status: "done" })
+        .eq("request_id", bookToBorrow.request_id);
+
+      if (updateBookingRequestError) {
+        console.error(
+          "Error updating booking request status:",
+          updateBookingRequestError.message
+        );
         return;
       }
 
@@ -496,6 +523,9 @@ const Booking = () => {
         >
           <strong>Success!</strong> You have booked "
           <span>{borrowedBookTitle || "Untitled Book"}</span>".
+          <br />
+          Please make sure to pick it up at the library before your selected
+          borrowing days end.
         </Alert>
       </Snackbar>
 

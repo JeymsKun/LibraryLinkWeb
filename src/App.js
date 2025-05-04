@@ -15,37 +15,69 @@ import UserSignUp from "./admin/UserSignUp";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { BookingProvider } from "./context/BookingContext";
+import { NotificationProvider } from "./components/NotificationProvider";
+import RedirectIfAuthenticated from "./components/RedirectIfAuthenticated";
 
 function App() {
   return (
     <AuthProvider>
       <BookingProvider>
-        <Router>
-          <Routes>
-            <Route path="/" element={<Navigate replace to="/Login/" />} />
-            <Route path="/Login/" element={<Login />} />
-            <Route path="/Login/Staff/" element={<Staff />} />
-            <Route path="/Login/Signup/" element={<UserSignUp />} />
-            <Route
-              path="/Staff/Dashboard/*"
-              element={
-                <ProtectedRoute>
-                  <DashboardStaff />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/Login/User/" element={<User />} />
-            <Route
-              path="/User/Dashboard/*"
-              element={
-                <ProtectedRoute>
-                  <DashboardUser />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/Book/:id" element={<AboutBook />} />
-          </Routes>
-        </Router>
+        <NotificationProvider>
+          <Router>
+            <Routes>
+              <Route path="/" element={<Navigate replace to="/Login/" />} />
+              <Route
+                path="/Login/"
+                element={
+                  <RedirectIfAuthenticated>
+                    <Login />
+                  </RedirectIfAuthenticated>
+                }
+              />
+              <Route
+                path="/Login/Staff/"
+                element={
+                  <RedirectIfAuthenticated>
+                    <Staff />
+                  </RedirectIfAuthenticated>
+                }
+              />
+              <Route
+                path="/Login/Signup/"
+                element={
+                  <RedirectIfAuthenticated>
+                    <UserSignUp />
+                  </RedirectIfAuthenticated>
+                }
+              />
+              <Route
+                path="/Staff/Dashboard/*"
+                element={
+                  <ProtectedRoute>
+                    <DashboardStaff />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/Login/User/"
+                element={
+                  <RedirectIfAuthenticated>
+                    <User />
+                  </RedirectIfAuthenticated>
+                }
+              />
+              <Route
+                path="/User/Dashboard/*"
+                element={
+                  <ProtectedRoute>
+                    <DashboardUser />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/Book/:id" element={<AboutBook />} />
+            </Routes>
+          </Router>
+        </NotificationProvider>
       </BookingProvider>
     </AuthProvider>
   );

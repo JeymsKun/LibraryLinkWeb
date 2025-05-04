@@ -26,7 +26,6 @@ const DashboardCards = () => {
       const borrowed =
         userBooks?.filter((b) => b.status === "borrowed").length || 0;
 
-      // Check for "returned" based on borrow_return_date
       const now = new Date();
       const returned =
         userBooks?.filter((b) => {

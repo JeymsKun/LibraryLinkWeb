@@ -14,7 +14,7 @@ import {
   Button,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-
+import useBookSubscription from "../../hooks/useBookSubscription";
 import SearchIcon from "@mui/icons-material/Search";
 import { supabase } from "../../supabase/client";
 import { useAuth } from "../../context/AuthContext";
@@ -113,6 +113,8 @@ const UserBrowse = ({ view, setView, onBookClick, selectedBookId }) => {
     setBooksByGenre(result);
     setLoading(false);
   };
+
+  useBookSubscription(genres, fetchBooksForGenres);
 
   const handleGenreChange = (e) => {
     setSelectedGenre(e.target.value);
