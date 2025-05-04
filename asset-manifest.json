@@ -1,18 +1,18 @@
 {
   "files": {
     "main.css": "/LibraryLinkWeb/static/css/main.e6c13ad2.css",
-    "main.js": "/LibraryLinkWeb/static/js/main.97fc552a.js",
+    "main.js": "/LibraryLinkWeb/static/js/main.a8e345d7.js",
     "static/js/952.48f98318.chunk.js": "/LibraryLinkWeb/static/js/952.48f98318.chunk.js",
     "static/js/453.716b1ff0.chunk.js": "/LibraryLinkWeb/static/js/453.716b1ff0.chunk.js",
     "static/media/official_logo.png": "/LibraryLinkWeb/static/media/official_logo.bc0db054390459e42825.png",
     "index.html": "/LibraryLinkWeb/index.html",
     "main.e6c13ad2.css.map": "/LibraryLinkWeb/static/css/main.e6c13ad2.css.map",
-    "main.97fc552a.js.map": "/LibraryLinkWeb/static/js/main.97fc552a.js.map",
+    "main.a8e345d7.js.map": "/LibraryLinkWeb/static/js/main.a8e345d7.js.map",
     "952.48f98318.chunk.js.map": "/LibraryLinkWeb/static/js/952.48f98318.chunk.js.map",
     "453.716b1ff0.chunk.js.map": "/LibraryLinkWeb/static/js/453.716b1ff0.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.e6c13ad2.css",
-    "static/js/main.97fc552a.js"
+    "static/js/main.a8e345d7.js"
   ]
 }
