@@ -21,6 +21,7 @@ import { useAuth } from "../../context/AuthContext";
 import { KeyboardArrowLeft } from "@mui/icons-material";
 import AboutBook from "../../components/AboutBook";
 import BookCart from "../../components/BookCart";
+import useSearchFilter from "../../hooks/useSearchFilter";
 
 const UserBrowse = ({ view, setView, onBookClick, selectedBookId }) => {
   const { user } = useAuth();
@@ -32,6 +33,12 @@ const UserBrowse = ({ view, setView, onBookClick, selectedBookId }) => {
   const [loading, setLoading] = useState(true);
   const [favoriteBooks, setFavoriteBooks] = useState([]);
   const theme = useTheme();
+
+  const books = selectedGenre
+    ? booksByGenre[selectedGenre] || []
+    : Object.values(booksByGenre).flat();
+
+  const filteredBooks = useSearchFilter(books, searchTerm);
 
   const fetchFavoriteBooks = useCallback(async () => {
     const { data, error } = await supabase
@@ -102,6 +109,7 @@ const UserBrowse = ({ view, setView, onBookClick, selectedBookId }) => {
 
           return {
             ...book,
+            genre: genre.name,
             cover_image_url: publicUrlData.publicUrl,
           };
         });
@@ -235,6 +243,11 @@ const UserBrowse = ({ view, setView, onBookClick, selectedBookId }) => {
             placeholder="Search a book"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleSearch();
+              }
+            }}
             endAdornment={
               <InputAdornment position="end">
                 <IconButton onClick={handleSearch} edge="end" size="small">
@@ -266,56 +279,127 @@ const UserBrowse = ({ view, setView, onBookClick, selectedBookId }) => {
       </Box>
 
       <Box sx={{ width: "100%", maxWidth: 1200 }}>
-        {(selectedGenre
-          ? genres.filter((g) => g.name === selectedGenre)
-          : genres
-        ).map((genre, index) => {
-          const books = booksByGenre[genre.name] || [];
+        {!loading && filteredBooks.length === 0 && (
+          <Typography
+            sx={{
+              color: "gray",
+              fontStyle: "italic",
+              textAlign: "center",
+              px: 2,
+              mb: 3,
+            }}
+          >
+            No books found for "{searchTerm}".
+          </Typography>
+        )}
 
-          return (
-            <Box key={genre.genre_id} sx={{ mb: 4 }}>
-              <Typography
-                variant="h6"
-                sx={{ fontWeight: "bold", mb: 1, textAlign: "left" }}
-              >
-                {genre.name}
-              </Typography>
-
+        {searchTerm.trim() ? (
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 2,
+              justifyContent: "center",
+            }}
+          >
+            {filteredBooks.map((book) => (
               <Box
+                key={book.books_id}
                 sx={{
+                  width: 140,
+                  height: 240,
+                  flexShrink: 0,
                   display: "flex",
-                  overflowX: books.length > 0 ? "auto" : "hidden",
-                  gap: 2,
-                  pb: 1,
-                  minHeight: 220,
+                  flexDirection: "column",
                   alignItems: "center",
-                  justifyContent: books.length === 0 ? "center" : "flex-start",
+                  backgroundColor: "#cce6f9",
+                  borderRadius: 2,
+                  p: 1,
+                  boxShadow: 2,
                 }}
               >
-                {loading ? (
-                  [...Array(8)].map((_, i) => (
-                    <Box key={i} sx={{ minWidth: 120 }}>
-                      <Skeleton
-                        variant="rectangular"
-                        width="100%"
-                        height={160}
-                        sx={{ marginBottom: 1 }}
-                      />
-                      <Skeleton variant="text" sx={{ fontSize: "1rem" }} />
-                      <Skeleton variant="text" sx={{ fontSize: "0.8rem" }} />
-                    </Box>
-                  ))
-                ) : books.length > 0 ? (
-                  books
-                    .filter((book) => {
-                      const term = searchTerm.toLowerCase();
-                      return (
-                        book.title.toLowerCase().includes(term) ||
-                        book.author.toLowerCase().includes(term)
-                      );
-                    })
-
-                    .map((book) => (
+                <Box
+                  component="img"
+                  src={book.cover_image_url}
+                  alt={book.title}
+                  sx={{
+                    width: "100%",
+                    height: 200,
+                    objectFit: "cover",
+                    borderRadius: 1,
+                    backgroundColor: "#ccc",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => handleBookClick(book.books_id)}
+                />
+                <Typography
+                  sx={{
+                    fontWeight: "bold",
+                    mt: 0.5,
+                    fontSize: getFontSize(book.title.length, 0.9),
+                    textAlign: "center",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    width: "100%",
+                  }}
+                >
+                  {book.title}
+                </Typography>
+                <Typography
+                  sx={{
+                    color: "#555",
+                    fontSize: getFontSize(book.author.length, 0.8),
+                    textAlign: "center",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    width: "100%",
+                  }}
+                >
+                  {book.author}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        ) : (
+          genres.map((genre, index) => {
+            const genreBooks = booksByGenre[genre.name] || [];
+            return (
+              <Box key={genre.genre_id} sx={{ mb: 4 }}>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: "bold", mb: 1, textAlign: "left" }}
+                >
+                  {genre.name}
+                </Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    overflowX: genreBooks.length > 0 ? "auto" : "hidden",
+                    gap: 2,
+                    pb: 1,
+                    minHeight: 220,
+                    alignItems: "center",
+                    justifyContent:
+                      genreBooks.length === 0 ? "center" : "flex-start",
+                  }}
+                >
+                  {loading ? (
+                    [...Array(8)].map((_, i) => (
+                      <Box key={i} sx={{ minWidth: 120 }}>
+                        <Skeleton
+                          variant="rectangular"
+                          width="100%"
+                          height={160}
+                          sx={{ marginBottom: 1 }}
+                        />
+                        <Skeleton variant="text" sx={{ fontSize: "1rem" }} />
+                        <Skeleton variant="text" sx={{ fontSize: "0.8rem" }} />
+                      </Box>
+                    ))
+                  ) : genreBooks.length > 0 ? (
+                    genreBooks.map((book) => (
                       <Box
                         key={book.books_id}
                         sx={{
@@ -374,24 +458,24 @@ const UserBrowse = ({ view, setView, onBookClick, selectedBookId }) => {
                         </Typography>
                       </Box>
                     ))
-                ) : (
-                  <Typography
-                    sx={{
-                      color: "gray",
-                      fontStyle: "italic",
-                      textAlign: "center",
-                      px: 2,
-                    }}
-                  >
-                    No books available in this genre yet.
-                  </Typography>
-                )}
+                  ) : (
+                    <Typography
+                      sx={{
+                        color: "gray",
+                        fontStyle: "italic",
+                        textAlign: "center",
+                        px: 2,
+                      }}
+                    >
+                      No books available in this genre yet.
+                    </Typography>
+                  )}
+                </Box>
+                {index !== genres.length - 1 && <Divider sx={{ mt: 3 }} />}
               </Box>
-
-              {index !== genres.length - 1 && <Divider sx={{ mt: 3 }} />}
-            </Box>
-          );
-        })}
+            );
+          })
+        )}
       </Box>
     </Box>
   );

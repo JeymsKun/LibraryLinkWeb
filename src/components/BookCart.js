@@ -154,6 +154,70 @@ const BookCart = () => {
     }
   };
 
+  const borrowBook = async (bookId) => {
+    const { data: existingRequest, error: checkError } = await supabase
+      .from("booking_requests")
+      .select("request_id")
+      .eq("user_id", user.user_id)
+      .eq("books_id", bookId)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error("Error checking existing request:", checkError.message);
+      showNotification("Error checking existing requests.", "error");
+      return;
+    }
+
+    if (existingRequest) {
+      showNotification("You've already requested this book.", "info");
+      return;
+    }
+
+    const { error: insertError } = await supabase
+      .from("booking_requests")
+      .insert({
+        user_id: user.user_id,
+        books_id: bookId,
+        status: "waiting",
+        requested_at: new Date().toISOString(),
+      });
+
+    if (insertError) {
+      console.error("Error submitting booking request:", insertError.message);
+      showNotification("Failed to request booking.", "error");
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from("booking_cart")
+      .update({ status: "approval" })
+      .eq("user_id", user.user_id)
+      .eq("books_id", bookId)
+      .eq("status", "pending");
+
+    if (updateError) {
+      console.warn(
+        "Booking request added, but cart status update failed:",
+        updateError.message
+      );
+    }
+
+    const {} = await supabase.from("activity").insert({
+      books_id: bookId,
+      user_id: user.user_id,
+      status: "pending",
+    });
+
+    setBooks((prevBooks) => prevBooks.filter((book) => book.id !== bookId));
+    setSelectedBooks((prevSelected) =>
+      prevSelected.filter((id) => id !== bookId)
+    );
+    showNotification(
+      "Borrow request sent! Please wait for approval.",
+      "success"
+    );
+  };
+
   const requestBooking = async (bookId) => {
     const { data: existingRequest, error: checkError } = await supabase
       .from("booking_requests")
@@ -212,7 +276,10 @@ const BookCart = () => {
     setSelectedBooks((prevSelected) =>
       prevSelected.filter((id) => id !== bookId)
     );
-    showNotification("Request sent! Please wait for approval.", "success");
+    showNotification(
+      "Borrow request sent! Please wait for approval.",
+      "success"
+    );
   };
 
   return (
@@ -378,6 +445,24 @@ const BookCart = () => {
                     >
                       <DeleteIcon />
                     </IconButton>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={() => borrowBook(book.id)}
+                      sx={{ fontWeight: "bold", whiteSpace: "nowrap" }}
+                    >
+                      Borrow Book
+                    </Button>
+                  </Box>
+                )}
+                {isSelected && (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 1,
+                      ml: "auto",
+                    }}
+                  >
                     <Button
                       variant="contained"
                       color="primary"
