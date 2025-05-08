@@ -154,7 +154,7 @@ const BookCart = () => {
     }
   };
 
-  const borrowBook = async (bookId) => {
+  const requestBooking = async (bookId) => {
     const { data: existingRequest, error: checkError } = await supabase
       .from("booking_requests")
       .select("request_id")
@@ -218,25 +218,7 @@ const BookCart = () => {
     );
   };
 
-  const requestBooking = async (bookId) => {
-    const { data: existingRequest, error: checkError } = await supabase
-      .from("booking_requests")
-      .select("request_id")
-      .eq("user_id", user.user_id)
-      .eq("books_id", bookId)
-      .maybeSingle();
-
-    if (checkError) {
-      console.error("Error checking existing request:", checkError.message);
-      showNotification("Error checking existing requests.", "error");
-      return;
-    }
-
-    if (existingRequest) {
-      showNotification("You've already requested this book.", "info");
-      return;
-    }
-
+  const borrowBook = async (bookId) => {
     const { error: insertError } = await supabase
       .from("booking_requests")
       .insert({
@@ -247,21 +229,21 @@ const BookCart = () => {
       });
 
     if (insertError) {
-      console.error("Error submitting booking request:", insertError.message);
-      showNotification("Failed to request booking.", "error");
+      console.error("Error submitting borrowing book:", insertError.message);
+      showNotification("Failed to borrowing book.", "error");
       return;
     }
 
     const { error: updateError } = await supabase
       .from("booking_cart")
-      .update({ status: "approval" })
+      .update({ status: "confirm" })
       .eq("user_id", user.user_id)
       .eq("books_id", bookId)
       .eq("status", "pending");
 
     if (updateError) {
       console.warn(
-        "Booking request added, but cart status update failed:",
+        "Borrowing book is added, but cart status update failed:",
         updateError.message
       );
     }
@@ -269,17 +251,14 @@ const BookCart = () => {
     const {} = await supabase.from("activity").insert({
       books_id: bookId,
       user_id: user.user_id,
-      status: "pending",
+      status: "borrowed",
     });
 
     setBooks((prevBooks) => prevBooks.filter((book) => book.id !== bookId));
     setSelectedBooks((prevSelected) =>
       prevSelected.filter((id) => id !== bookId)
     );
-    showNotification(
-      "Borrow request sent! Please wait for approval.",
-      "success"
-    );
+    showNotification("Borrowing confirmed. Enjoy your book!", "success");
   };
 
   return (
@@ -402,20 +381,36 @@ const BookCart = () => {
                   checked={isSelected}
                   onChange={() => handleCheckboxChange(book.id)}
                 />
-                <Card sx={{ width: 200, height: 250 }}>
+                <Card sx={{ width: "auto", height: "auto" }}>
                   <CardMedia
                     component="img"
                     image={book.coverUrl || "/default-cover.png"}
                     alt={book.title}
-                    sx={{ objectFit: "cover", height: "100%" }}
+                    sx={{
+                      objectFit: "cover",
+                      height: "100%",
+                      width: "100%",
+                    }}
                   />
                 </Card>
-                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+
+                <Box
+                  sx={{
+                    flexGrow: 1,
+                    minWidth: 0,
+                    maxHeight: 250,
+                    overflow: "hidden",
+                  }}
+                >
                   <Typography
                     variant="body1"
                     sx={{
                       whiteSpace: "normal",
                       wordBreak: "break-word",
+                      fontWeight: "bold",
+                      lineHeight: 1.2,
+                      height: "40%",
+                      overflow: "hidden",
                     }}
                   >
                     {book.title}
@@ -426,6 +421,9 @@ const BookCart = () => {
                     sx={{
                       whiteSpace: "normal",
                       wordBreak: "break-word",
+                      fontSize: "0.75rem",
+                      height: "20%",
+                      overflow: "hidden",
                     }}
                   >
                     {book.author}
@@ -441,7 +439,11 @@ const BookCart = () => {
                   >
                     <IconButton
                       onClick={() => handleRemoveBook(book.id)}
-                      sx={{ color: "red" }}
+                      sx={{
+                        color: "red",
+                        padding: 0,
+                        marginY: 1,
+                      }}
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -449,25 +451,24 @@ const BookCart = () => {
                       variant="contained"
                       color="primary"
                       onClick={() => borrowBook(book.id)}
-                      sx={{ fontWeight: "bold", whiteSpace: "nowrap" }}
+                      sx={{
+                        fontWeight: "bold",
+                        whiteSpace: "nowrap",
+                        width: "100%",
+                      }}
                     >
                       Borrow Book
                     </Button>
-                  </Box>
-                )}
-                {isSelected && (
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 1,
-                      ml: "auto",
-                    }}
-                  >
+
                     <Button
                       variant="contained"
                       color="primary"
                       onClick={() => requestBooking(book.id)}
-                      sx={{ fontWeight: "bold", whiteSpace: "nowrap" }}
+                      sx={{
+                        fontWeight: "bold",
+                        whiteSpace: "nowrap",
+                        width: "100%",
+                      }}
                     >
                       Request Booking
                     </Button>
